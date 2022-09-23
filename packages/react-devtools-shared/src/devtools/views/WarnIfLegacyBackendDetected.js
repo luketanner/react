@@ -14,7 +14,7 @@ import {ModalDialogContext} from './ModalDialog';
 
 import styles from './WarnIfLegacyBackendDetected.css';
 
-export default function WarnIfLegacyBackendDetected(_: {||}) {
+export default function WarnIfLegacyBackendDetected(_: {}): null {
   const bridge = useContext(BridgeContext);
   const {dispatch} = useContext(ModalDialogContext);
 
@@ -31,6 +31,7 @@ export default function WarnIfLegacyBackendDetected(_: {||}) {
           // Any of these types indicate the v3 backend.
           dispatch({
             canBeDismissed: false,
+            id: 'WarnIfLegacyBackendDetected',
             type: 'SHOW',
             title: 'DevTools v4 is incompatible with this version of React',
             content: <InvalidBackendDetected />,
@@ -74,7 +75,7 @@ export default function WarnIfLegacyBackendDetected(_: {||}) {
   return null;
 }
 
-function InvalidBackendDetected(_: {||}) {
+function InvalidBackendDetected(_: {}) {
   return (
     <Fragment>
       <p>Either upgrade React or install React DevTools v3:</p>

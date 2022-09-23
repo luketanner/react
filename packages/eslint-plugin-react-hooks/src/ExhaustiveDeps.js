@@ -15,11 +15,11 @@ export default {
     docs: {
       description:
         'verifies the list of dependencies for Hooks like useEffect and similar',
-      category: 'Best Practices',
       recommended: true,
       url: 'https://github.com/facebook/react/issues/14920',
     },
     fixable: 'code',
+    hasSuggestions: true,
     schema: [
       {
         type: 'object',
@@ -174,6 +174,8 @@ export default {
         componentScope = currentScope;
       }
 
+      const isArray = Array.isArray;
+
       // Next we'll define a few helpers that helps us
       // tell if some values don't have to be declared as deps.
 
@@ -186,7 +188,7 @@ export default {
       //       ^^^ true for this reference
       // False for everything else.
       function isStableKnownHookValue(resolved) {
-        if (!Array.isArray(resolved.defs)) {
+        if (!isArray(resolved.defs)) {
           return false;
         }
         const def = resolved.defs[0];
@@ -255,13 +257,20 @@ export default {
           if (
             id.type === 'ArrayPattern' &&
             id.elements.length === 2 &&
-            Array.isArray(resolved.identifiers)
+            isArray(resolved.identifiers)
           ) {
             // Is second tuple value the same reference we're checking?
             if (id.elements[1] === resolved.identifiers[0]) {
               if (name === 'useState') {
                 const references = resolved.references;
+                let writeCount = 0;
                 for (let i = 0; i < references.length; i++) {
+                  if (references[i].isWrite()) {
+                    writeCount++;
+                  }
+                  if (writeCount > 1) {
+                    return false;
+                  }
                   setStateCallSites.set(
                     references[i].identifier,
                     id.elements[0],
@@ -282,12 +291,14 @@ export default {
             }
           }
         } else if (name === 'useTransition') {
+          // Only consider second value in initializing tuple stable.
           if (
             id.type === 'ArrayPattern' &&
+            id.elements.length === 2 &&
             Array.isArray(resolved.identifiers)
           ) {
-            // Is first tuple value the same reference we're checking?
-            if (id.elements[0] === resolved.identifiers[0]) {
+            // Is second tuple value the same reference we're checking?
+            if (id.elements[1] === resolved.identifiers[0]) {
               // Setter is stable.
               return true;
             }
@@ -327,7 +338,7 @@ export default {
 
       // Some are just functions that don't reference anything dynamic.
       function isFunctionWithoutCapturedValues(resolved) {
-        if (!Array.isArray(resolved.defs)) {
+        if (!isArray(resolved.defs)) {
           return false;
         }
         const def = resolved.defs[0];
@@ -374,7 +385,7 @@ export default {
             pureScopes.has(ref.resolved.scope) &&
             // Stable values are fine though,
             // although we won't check functions deeper.
-            !memoizedIsStablecKnownHookValue(ref.resolved)
+            !memoizedIsStableKnownHookValue(ref.resolved)
           ) {
             return false;
           }
@@ -385,7 +396,7 @@ export default {
       }
 
       // Remember such values. Avoid re-running extra checks on them.
-      const memoizedIsStablecKnownHookValue = memoizeWithWeakMap(
+      const memoizedIsStableKnownHookValue = memoizeWithWeakMap(
         isStableKnownHookValue,
         stableKnownValueCache,
       );
@@ -398,7 +409,7 @@ export default {
       const currentRefsInEffectCleanup = new Map();
 
       // Is this reference inside a cleanup function for this effect node?
-      // We can check by traversing scopes upwards  from the reference, and checking
+      // We can check by traversing scopes upwards from the reference, and checking
       // if the last "return () => " we encounter is located directly inside the effect.
       function isInsideEffectCleanup(reference) {
         let curScope = reference.from;
@@ -488,7 +499,7 @@ export default {
           if (!dependencies.has(dependency)) {
             const resolved = reference.resolved;
             const isStable =
-              memoizedIsStablecKnownHookValue(resolved) ||
+              memoizedIsStableKnownHookValue(resolved) ||
               memoizedIsFunctionWithoutCapturedValues(resolved);
             dependencies.set(dependency, {
               isStable,
@@ -806,7 +817,7 @@ export default {
             if (
               isUsedOutsideOfHook &&
               construction.type === 'Variable' &&
-              // Objects may be mutated ater construction, which would make this
+              // Objects may be mutated after construction, which would make this
               // fix unsafe. Functions _probably_ won't be mutated, so we'll
               // allow this fix for them.
               depType === 'function'
@@ -1172,6 +1183,19 @@ export default {
       const reactiveHookName = getNodeWithoutReactNamespace(reactiveHook).name;
       const declaredDependenciesNode = node.arguments[callbackIndex + 1];
       const isEffect = /Effect($|[^a-z])/g.test(reactiveHookName);
+
+      // Check whether a callback is supplied. If there is no callback supplied
+      // then the hook will not work and React will throw a TypeError.
+      // So no need to check for dependency inclusion.
+      if (!callback) {
+        reportProblem({
+          node: reactiveHook,
+          message:
+            `React Hook ${reactiveHookName} requires an effect callback. ` +
+            `Did you forget to pass a callback to the hook?`,
+        });
+        return;
+      }
 
       // Check the declared dependencies for this reactive hook. If there is no
       // second argument then the reactive callback will re-run on every render.
@@ -1697,6 +1721,11 @@ function analyzePropertyChain(node, optionalChains) {
     return result;
   } else if (node.type === 'ChainExpression' && !node.computed) {
     const expression = node.expression;
+
+    if (expression.type === 'CallExpression') {
+      throw new Error(`Unsupported node type: ${expression.type}`);
+    }
+
     const object = analyzePropertyChain(expression.object, optionalChains);
     const property = analyzePropertyChain(expression.property, null);
     const result = `${object}.${property}`;

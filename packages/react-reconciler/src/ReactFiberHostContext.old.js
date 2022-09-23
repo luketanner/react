@@ -11,8 +11,6 @@ import type {Fiber} from './ReactInternalTypes';
 import type {StackCursor} from './ReactFiberStack.old';
 import type {Container, HostContext} from './ReactFiberHostConfig';
 
-import invariant from 'shared/invariant';
-
 import {getChildHostContext, getRootHostContext} from './ReactFiberHostConfig';
 import {createCursor, push, pop} from './ReactFiberStack.old';
 
@@ -30,11 +28,13 @@ const rootInstanceStackCursor: StackCursor<
 > = createCursor(NO_CONTEXT);
 
 function requiredContext<Value>(c: Value | NoContextT): Value {
-  invariant(
-    c !== NO_CONTEXT,
-    'Expected host context to exist. This error is likely caused by a bug ' +
-      'in React. Please file an issue.',
-  );
+  if (c === NO_CONTEXT) {
+    throw new Error(
+      'Expected host context to exist. This error is likely caused by a bug ' +
+        'in React. Please file an issue.',
+    );
+  }
+
   return (c: any);
 }
 
@@ -75,11 +75,8 @@ function getHostContext(): HostContext {
 }
 
 function pushHostContext(fiber: Fiber): void {
-  const rootInstance: Container = requiredContext(
-    rootInstanceStackCursor.current,
-  );
   const context: HostContext = requiredContext(contextStackCursor.current);
-  const nextContext = getChildHostContext(context, fiber.type, rootInstance);
+  const nextContext = getChildHostContext(context, fiber.type);
 
   // Don't push this Fiber's context unless it's unique.
   if (context === nextContext) {

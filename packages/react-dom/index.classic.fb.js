@@ -9,10 +9,10 @@
 
 import {isEnabled} from './src/events/ReactDOMEventListener';
 
-import {__SECRET_INTERNALS_DO_NOT_USE_OR_YOU_WILL_BE_FIRED} from './src/client/ReactDOM';
+import Internals from './src/ReactDOMSharedInternals';
 
 // For classic WWW builds, include a few internals that are already in use.
-Object.assign((__SECRET_INTERNALS_DO_NOT_USE_OR_YOU_WILL_BE_FIRED: any), {
+Object.assign((Internals: any), {
   ReactBrowserEventEmitter: {
     isEnabled,
   },
@@ -20,23 +20,20 @@ Object.assign((__SECRET_INTERNALS_DO_NOT_USE_OR_YOU_WILL_BE_FIRED: any), {
 
 export {
   createPortal,
-  unstable_batchedUpdates,
-  flushSync,
-  __SECRET_INTERNALS_DO_NOT_USE_OR_YOU_WILL_BE_FIRED,
-  version,
+  createRoot,
+  hydrateRoot,
   findDOMNode,
+  flushSync,
   hydrate,
   render,
   unmountComponentAtNode,
-  createRoot,
-  createRoot as unstable_createRoot,
-  createBlockingRoot,
-  createBlockingRoot as unstable_createBlockingRoot,
-  unstable_flushControlled,
-  unstable_scheduleHydration,
-  unstable_runWithPriority,
-  unstable_renderSubtreeIntoContainer,
-  unstable_createPortal,
+  unstable_batchedUpdates,
   unstable_createEventHandle,
+  unstable_flushControlled,
   unstable_isNewReconciler,
+  unstable_renderSubtreeIntoContainer,
+  unstable_runWithPriority, // DO NOT USE: Temporarily exposed to migrate off of Scheduler.runWithPriority.
+  version,
 } from './src/client/ReactDOM';
+
+export {Internals as __SECRET_INTERNALS_DO_NOT_USE_OR_YOU_WILL_BE_FIRED};

@@ -10,6 +10,8 @@ import type {AnyNativeEvent} from '../PluginModuleType';
 import type {DOMEventName} from '../DOMEventNames';
 import type {DispatchQueue} from '../DOMPluginEventSystem';
 import type {EventSystemFlags} from '../EventSystemFlags';
+import type {Fiber} from 'react-reconciler/src/ReactInternalTypes';
+import type {ReactSyntheticEvent} from '../ReactSyntheticEventType';
 
 import {registerTwoPhaseEvent} from '../EventRegistry';
 import {SyntheticEvent} from '../SyntheticEvent';
@@ -23,12 +25,16 @@ import {updateValueIfChanged} from '../../client/inputValueTracking';
 import {setDefaultValue} from '../../client/ReactDOMInput';
 import {enqueueStateRestore} from '../ReactDOMControlledComponent';
 
-import {disableInputAttributeSyncing} from 'shared/ReactFeatureFlags';
+import {
+  disableInputAttributeSyncing,
+  enableCustomElementPropertySupport,
+} from 'shared/ReactFeatureFlags';
 import {batchedUpdates} from '../ReactDOMUpdateBatching';
 import {
   processDispatchQueue,
   accumulateTwoPhaseListeners,
 } from '../DOMPluginEventSystem';
+import isCustomComponent from '../../shared/isCustomComponent';
 
 function registerEvents() {
   registerTwoPhaseEvent('onChange', [
@@ -53,7 +59,8 @@ function createAndAccumulateChangeEvent(
   enqueueStateRestore(((target: any): Node));
   const listeners = accumulateTwoPhaseListeners(inst, 'onChange');
   if (listeners.length > 0) {
-    const event = new SyntheticEvent(
+    // $FlowFixMe[incompatible-type]
+    const event: ReactSyntheticEvent = new SyntheticEvent(
       'onChange',
       'change',
       null,
@@ -292,6 +299,12 @@ function extractEvents(
     }
   } else if (shouldUseClickEvent(targetNode)) {
     getTargetInstFunc = getTargetInstForClickEvent;
+  } else if (
+    enableCustomElementPropertySupport &&
+    targetInst &&
+    isCustomComponent(targetInst.elementType, targetInst.memoizedProps)
+  ) {
+    getTargetInstFunc = getTargetInstForChangeEvent;
   }
 
   if (getTargetInstFunc) {

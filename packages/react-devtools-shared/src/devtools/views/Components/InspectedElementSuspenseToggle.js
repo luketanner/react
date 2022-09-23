@@ -8,6 +8,7 @@
  */
 
 import * as React from 'react';
+import {OptionsContext} from '../context';
 import EditableValue from './EditableValue';
 import Store from '../../store';
 import {ElementTypeSuspense} from 'react-devtools-shared/src/types';
@@ -16,18 +17,21 @@ import styles from './InspectedElementSharedStyles.css';
 import type {InspectedElement} from './types';
 import type {FrontendBridge} from 'react-devtools-shared/src/bridge';
 
-type Props = {|
+type Props = {
   bridge: FrontendBridge,
   inspectedElement: InspectedElement,
   store: Store,
-|};
+};
 
 export default function InspectedElementSuspenseToggle({
   bridge,
   inspectedElement,
   store,
-}: Props) {
-  const {canToggleSuspense, id, state, type} = inspectedElement;
+}: Props): React.Node {
+  const {readOnly} = React.useContext(OptionsContext);
+
+  const {id, state, type} = inspectedElement;
+  const canToggleSuspense = !readOnly && inspectedElement.canToggleSuspense;
 
   if (type !== ElementTypeSuspense) {
     return null;

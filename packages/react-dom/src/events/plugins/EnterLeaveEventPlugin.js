@@ -11,9 +11,11 @@ import type {AnyNativeEvent} from '../PluginModuleType';
 import type {DOMEventName} from '../DOMEventNames';
 import type {DispatchQueue} from '../DOMPluginEventSystem';
 import type {EventSystemFlags} from '../EventSystemFlags';
+import type {Fiber} from 'react-reconciler/src/ReactInternalTypes';
+import type {KnownReactSyntheticEvent} from '../ReactSyntheticEventType';
 
 import {registerDirectEvent} from '../EventRegistry';
-import {IS_REPLAYED} from 'react-dom/src/events/EventSystemFlags';
+import {isReplayingEvent} from '../CurrentReplayingEvent';
 import {SyntheticMouseEvent, SyntheticPointerEvent} from '../SyntheticEvent';
 import {
   getClosestInstanceFromNode,
@@ -21,7 +23,6 @@ import {
   isContainerMarkedAsRoot,
 } from '../../client/ReactDOMComponentTree';
 import {accumulateEnterLeaveTwoPhaseListeners} from '../DOMPluginEventSystem';
-import type {KnownReactSyntheticEvent} from '../ReactSyntheticEventType';
 
 import {HostComponent, HostText} from 'react-reconciler/src/ReactWorkTags';
 import {getNearestMountedFiber} from 'react-reconciler/src/ReactFiberTreeReflection';
@@ -54,7 +55,7 @@ function extractEvents(
   const isOutEvent =
     domEventName === 'mouseout' || domEventName === 'pointerout';
 
-  if (isOverEvent && (eventSystemFlags & IS_REPLAYED) === 0) {
+  if (isOverEvent && !isReplayingEvent(nativeEvent)) {
     // If this is an over event with a target, we might have already dispatched
     // the event in the out event of the other target. If this is replayed,
     // then it's because we couldn't dispatch against this target previously
@@ -133,7 +134,9 @@ function extractEvents(
   const fromNode = from == null ? win : getNodeFromInstance(from);
   const toNode = to == null ? win : getNodeFromInstance(to);
 
-  const leave = new SyntheticEventCtor(
+  // $FlowFixMe[prop-missing]
+  // $FlowFixMe[incompatible-type]
+  const leave: KnownReactSyntheticEvent = new SyntheticEventCtor(
     leaveEventType,
     eventTypePrefix + 'leave',
     from,
@@ -149,6 +152,7 @@ function extractEvents(
   // the first ancestor. Next time, we will ignore the event.
   const nativeTargetInst = getClosestInstanceFromNode((nativeEventTarget: any));
   if (nativeTargetInst === targetInst) {
+    // $FlowFixMe[prop-missing]
     const enterEvent: KnownReactSyntheticEvent = new SyntheticEventCtor(
       enterEventType,
       eventTypePrefix + 'enter',

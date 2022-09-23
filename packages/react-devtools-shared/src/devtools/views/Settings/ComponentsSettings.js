@@ -16,11 +16,13 @@ import {
   useRef,
   useState,
 } from 'react';
-import {useSubscription} from '../hooks';
+import {LOCAL_STORAGE_OPEN_IN_EDITOR_URL} from '../../../constants';
+import {useLocalStorage, useSubscription} from '../hooks';
 import {StoreContext} from '../context';
 import Button from '../Button';
 import ButtonIcon from '../ButtonIcon';
 import Toggle from '../Toggle';
+import {SettingsContext} from '../Settings/SettingsContext';
 import {
   ComponentFilterDisplayName,
   ComponentFilterElementType,
@@ -36,6 +38,7 @@ import {
   ElementTypeProfiler,
   ElementTypeSuspense,
 } from 'react-devtools-shared/src/types';
+import {getDefaultOpenInEditorURL} from 'react-devtools-shared/src/utils';
 
 import styles from './SettingsShared.css';
 
@@ -48,8 +51,9 @@ import type {
   RegExpComponentFilter,
 } from 'react-devtools-shared/src/types';
 
-export default function ComponentsSettings(_: {||}) {
+export default function ComponentsSettings(_: {}): React.Node {
   const store = useContext(StoreContext);
+  const {parseHookNames, setParseHookNames} = useContext(SettingsContext);
 
   const collapseNodesByDefaultSubscription = useMemo(
     () => ({
@@ -70,6 +74,18 @@ export default function ComponentsSettings(_: {||}) {
       store.collapseNodesByDefault = !currentTarget.checked;
     },
     [store],
+  );
+
+  const updateParseHookNames = useCallback(
+    ({currentTarget}) => {
+      setParseHookNames(currentTarget.checked);
+    },
+    [setParseHookNames],
+  );
+
+  const [openInEditorURL, setOpenInEditorURL] = useLocalStorage<string>(
+    LOCAL_STORAGE_OPEN_IN_EDITOR_URL,
+    getDefaultOpenInEditorURL(),
   );
 
   const [componentFilters, setComponentFilters] = useState<
@@ -252,6 +268,29 @@ export default function ComponentsSettings(_: {||}) {
         Expand component tree by default
       </label>
 
+      <label className={styles.Setting}>
+        <input
+          type="checkbox"
+          checked={parseHookNames}
+          onChange={updateParseHookNames}
+        />{' '}
+        Always parse hook names from source{' '}
+        <span className={styles.Warning}>(may be slow)</span>
+      </label>
+
+      <label className={styles.OpenInURLSetting}>
+        Open in Editor URL:{' '}
+        <input
+          className={styles.Input}
+          type="text"
+          placeholder={process.env.EDITOR_URL ?? 'vscode://file/{path}:{line}'}
+          value={openInEditorURL}
+          onChange={event => {
+            setOpenInEditorURL(event.target.value);
+          }}
+        />
+      </label>
+
       <div className={styles.Header}>Hide components where...</div>
 
       <table className={styles.Table}>
@@ -378,10 +417,10 @@ export default function ComponentsSettings(_: {||}) {
   );
 }
 
-type ToggleIconProps = {|
+type ToggleIconProps = {
   isEnabled: boolean,
   isValid: boolean,
-|};
+};
 function ToggleIcon({isEnabled, isValid}: ToggleIconProps) {
   let className;
   if (isValid) {

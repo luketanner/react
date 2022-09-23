@@ -10,9 +10,8 @@
 import type {Fiber} from 'react-reconciler/src/ReactInternalTypes';
 import type {Instance} from './ReactFiberHostConfig';
 
-import invariant from 'shared/invariant';
 import {HostComponent, HostText} from 'react-reconciler/src/ReactWorkTags';
-import getComponentName from 'shared/getComponentName';
+import getComponentNameFromType from 'shared/getComponentNameFromType';
 import {
   findFiberRoot,
   getBoundingRect,
@@ -40,36 +39,36 @@ if (typeof Symbol === 'function' && Symbol.for) {
   TEXT_TYPE = symbolFor('selector.text');
 }
 
-type Type = Symbol | number;
+type Type = symbol | number;
 
-type ComponentSelector = {|
+type ComponentSelector = {
   $$typeof: Type,
   value: React$AbstractComponent<empty, mixed>,
-|};
+};
 
-type HasPsuedoClassSelector = {|
+type HasPseudoClassSelector = {
   $$typeof: Type,
   value: Array<Selector>,
-|};
+};
 
-type RoleSelector = {|
+type RoleSelector = {
   $$typeof: Type,
   value: string,
-|};
+};
 
-type TextSelector = {|
+type TextSelector = {
   $$typeof: Type,
   value: string,
-|};
+};
 
-type TestNameSelector = {|
+type TestNameSelector = {
   $$typeof: Type,
   value: string,
-|};
+};
 
 type Selector =
   | ComponentSelector
-  | HasPsuedoClassSelector
+  | HasPseudoClassSelector
   | RoleSelector
   | TextSelector
   | TestNameSelector;
@@ -83,9 +82,9 @@ export function createComponentSelector(
   };
 }
 
-export function createHasPsuedoClassSelector(
+export function createHasPseudoClassSelector(
   selectors: Array<Selector>,
-): HasPsuedoClassSelector {
+): HasPseudoClassSelector {
   return {
     $$typeof: HAS_PSEUDO_CLASS_TYPE,
     value: selectors,
@@ -116,17 +115,22 @@ export function createTestNameSelector(id: string): TestNameSelector {
 function findFiberRootForHostRoot(hostRoot: Instance): Fiber {
   const maybeFiber = getInstanceFromNode((hostRoot: any));
   if (maybeFiber != null) {
-    invariant(
-      typeof maybeFiber.memoizedProps['data-testname'] === 'string',
-      'Invalid host root specified. Should be either a React container or a node with a testname attribute.',
-    );
+    if (typeof maybeFiber.memoizedProps['data-testname'] !== 'string') {
+      throw new Error(
+        'Invalid host root specified. Should be either a React container or a node with a testname attribute.',
+      );
+    }
+
     return ((maybeFiber: any): Fiber);
   } else {
     const fiberRoot = findFiberRoot(hostRoot);
-    invariant(
-      fiberRoot !== null,
-      'Could not find React container within specified host subtree.',
-    );
+
+    if (fiberRoot === null) {
+      throw new Error(
+        'Could not find React container within specified host subtree.',
+      );
+    }
+
     // The Flow type for FiberRoot is a little funky.
     // createFiberRoot() cheats this by treating the root as :any and adding stateNode lazily.
     return ((fiberRoot: any).stateNode.current: Fiber);
@@ -143,7 +147,7 @@ function matchSelector(fiber: Fiber, selector: Selector): boolean {
     case HAS_PSEUDO_CLASS_TYPE:
       return hasMatchingPaths(
         fiber,
-        ((selector: any): HasPsuedoClassSelector).value,
+        ((selector: any): HasPseudoClassSelector).value,
       );
     case ROLE_TYPE:
       if (fiber.tag === HostComponent) {
@@ -179,8 +183,7 @@ function matchSelector(fiber: Fiber, selector: Selector): boolean {
       }
       break;
     default:
-      invariant(null, 'Invalid selector type %s specified.', selector);
-      break;
+      throw new Error('Invalid selector type specified.');
   }
 
   return false;
@@ -189,7 +192,7 @@ function matchSelector(fiber: Fiber, selector: Selector): boolean {
 function selectorToString(selector: Selector): string | null {
   switch (selector.$$typeof) {
     case COMPONENT_TYPE:
-      const displayName = getComponentName(selector.value) || 'Unknown';
+      const displayName = getComponentNameFromType(selector.value) || 'Unknown';
       return `<${displayName}>`;
     case HAS_PSEUDO_CLASS_TYPE:
       return `:has(${selectorToString(selector) || ''})`;
@@ -200,11 +203,8 @@ function selectorToString(selector: Selector): string | null {
     case TEST_NAME_TYPE:
       return `[data-testname="${((selector: any): TestNameSelector).value}"]`;
     default:
-      invariant(null, 'Invalid selector type %s specified.', selector);
-      break;
+      throw new Error('Invalid selector type specified.');
   }
-
-  return null;
 }
 
 function findPaths(root: Fiber, selectors: Array<Selector>): Array<Fiber> {
@@ -277,7 +277,7 @@ export function findAllNodes(
   selectors: Array<Selector>,
 ): Array<Instance> {
   if (!supportsTestSelectors) {
-    invariant(false, 'Test selector API is not supported by this renderer.');
+    throw new Error('Test selector API is not supported by this renderer.');
   }
 
   const root = findFiberRootForHostRoot(hostRoot);
@@ -311,7 +311,7 @@ export function getFindAllNodesFailureDescription(
   selectors: Array<Selector>,
 ): string | null {
   if (!supportsTestSelectors) {
-    invariant(false, 'Test selector API is not supported by this renderer.');
+    throw new Error('Test selector API is not supported by this renderer.');
   }
 
   const root = findFiberRootForHostRoot(hostRoot);
@@ -364,19 +364,19 @@ export function getFindAllNodesFailureDescription(
   return null;
 }
 
-export type BoundingRect = {|
+export type BoundingRect = {
   x: number,
   y: number,
   width: number,
   height: number,
-|};
+};
 
 export function findBoundingRects(
   hostRoot: Instance,
   selectors: Array<Selector>,
 ): Array<BoundingRect> {
   if (!supportsTestSelectors) {
-    invariant(false, 'Test selector API is not supported by this renderer.');
+    throw new Error('Test selector API is not supported by this renderer.');
   }
 
   const instanceRoots = findAllNodes(hostRoot, selectors);
@@ -466,7 +466,7 @@ export function focusWithin(
   selectors: Array<Selector>,
 ): boolean {
   if (!supportsTestSelectors) {
-    invariant(false, 'Test selector API is not supported by this renderer.');
+    throw new Error('Test selector API is not supported by this renderer.');
   }
 
   const root = findFiberRootForHostRoot(hostRoot);
@@ -514,9 +514,9 @@ export function observeVisibleRects(
   selectors: Array<Selector>,
   callback: (intersections: Array<{ratio: number, rect: BoundingRect}>) => void,
   options?: IntersectionObserverOptions,
-): {|disconnect: () => void|} {
+): {disconnect: () => void} {
   if (!supportsTestSelectors) {
-    invariant(false, 'Test selector API is not supported by this renderer.');
+    throw new Error('Test selector API is not supported by this renderer.');
   }
 
   const instanceRoots = findAllNodes(hostRoot, selectors);

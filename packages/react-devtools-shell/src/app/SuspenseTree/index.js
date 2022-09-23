@@ -8,14 +8,9 @@
  */
 
 import * as React from 'react';
-import {
-  Fragment,
-  Suspense,
-  unstable_SuspenseList as SuspenseList,
-  useState,
-} from 'react';
+import {Fragment, Suspense, SuspenseList, useState} from 'react';
 
-function SuspenseTree() {
+function SuspenseTree(): React.Node {
   return (
     <Fragment>
       <h1>Suspense</h1>

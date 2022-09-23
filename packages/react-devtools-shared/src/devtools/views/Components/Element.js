@@ -14,12 +14,16 @@ import Badge from './Badge';
 import ButtonIcon from '../ButtonIcon';
 import {createRegExp} from '../utils';
 import {TreeDispatcherContext, TreeStateContext} from './TreeContext';
+import {SettingsContext} from '../Settings/SettingsContext';
 import {StoreContext} from '../context';
+import {useSubscription} from '../hooks';
+import {logEvent} from 'react-devtools-shared/src/Logger';
 
 import type {ItemData} from './Tree';
-import type {Element} from './types';
+import type {Element as ElementType} from './types';
 
 import styles from './Element.css';
+import Icon from '../Icon';
 
 type Props = {
   data: ItemData,
@@ -28,12 +32,13 @@ type Props = {
   ...
 };
 
-export default function ElementView({data, index, style}: Props) {
+export default function Element({data, index, style}: Props): React.Node {
   const store = useContext(StoreContext);
   const {ownerFlatTree, ownerID, selectedElementID} = useContext(
     TreeStateContext,
   );
   const dispatch = useContext(TreeDispatcherContext);
+  const {showInlineWarningsAndErrors} = React.useContext(SettingsContext);
 
   const element =
     ownerFlatTree !== null
@@ -46,14 +51,36 @@ export default function ElementView({data, index, style}: Props) {
   const id = element === null ? null : element.id;
   const isSelected = selectedElementID === id;
 
+  const errorsAndWarningsSubscription = useMemo(
+    () => ({
+      getCurrentValue: () =>
+        element === null
+          ? {errorCount: 0, warningCount: 0}
+          : store.getErrorAndWarningCountForElementID(element.id),
+      subscribe: (callback: Function) => {
+        store.addListener('mutated', callback);
+        return () => store.removeListener('mutated', callback);
+      },
+    }),
+    [store, element],
+  );
+  const {errorCount, warningCount} = useSubscription<{
+    errorCount: number,
+    warningCount: number,
+  }>(errorsAndWarningsSubscription);
+
   const handleDoubleClick = () => {
     if (id !== null) {
       dispatch({type: 'SELECT_OWNER', payload: id});
     }
   };
 
-  const handleMouseDown = ({metaKey}) => {
+  const handleClick = ({metaKey}) => {
     if (id !== null) {
+      logEvent({
+        event_name: 'select-element',
+        metadata: {source: 'click-element'},
+      });
       dispatch({
         type: 'SELECT_ELEMENT_BY_ID',
         payload: metaKey ? null : id,
@@ -81,7 +108,7 @@ export default function ElementView({data, index, style}: Props) {
 
   // Handle elements that are removed from the tree while an async render is in progress.
   if (element == null) {
-    console.warn(`<ElementView> Could not find element at index ${index}`);
+    console.warn(`<Element> Could not find element at index ${index}`);
 
     // This return needs to happen after hooks, since hooks can't be conditional.
     return null;
@@ -91,9 +118,14 @@ export default function ElementView({data, index, style}: Props) {
     depth,
     displayName,
     hocDisplayNames,
+    isStrictModeNonCompliant,
     key,
     type,
-  } = ((element: any): Element);
+  } = ((element: any): ElementType);
+
+  // Only show strict mode non-compliance badges for top level elements.
+  // Showing an inline badge for every element in the tree would be noisy.
+  const showStrictModeBadge = isStrictModeNonCompliant && depth === 0;
 
   let className = styles.Element;
   if (isSelected) {
@@ -109,9 +141,10 @@ export default function ElementView({data, index, style}: Props) {
       className={className}
       onMouseEnter={handleMouseEnter}
       onMouseLeave={handleMouseLeave}
-      onMouseDown={handleMouseDown}
+      onClick={handleClick}
       onDoubleClick={handleDoubleClick}
       style={style}
+      data-testname="ComponentTreeListItem"
       data-depth={depth}>
       {/* This wrapper is used by Tree for measurement purposes. */}
       <div
@@ -124,7 +157,9 @@ export default function ElementView({data, index, style}: Props) {
         {ownerID === null ? (
           <ExpandCollapseToggle element={element} store={store} />
         ) : null}
+
         <DisplayName displayName={displayName} id={((id: any): number)} />
+
         {key && (
           <Fragment>
             &nbsp;<span className={styles.KeyName}>key</span>="
@@ -148,6 +183,37 @@ export default function ElementView({data, index, style}: Props) {
             />
           </Badge>
         ) : null}
+        {showInlineWarningsAndErrors && errorCount > 0 && (
+          <Icon
+            type="error"
+            className={
+              isSelected && treeFocused
+                ? styles.ErrorIconContrast
+                : styles.ErrorIcon
+            }
+          />
+        )}
+        {showInlineWarningsAndErrors && warningCount > 0 && (
+          <Icon
+            type="warning"
+            className={
+              isSelected && treeFocused
+                ? styles.WarningIconContrast
+                : styles.WarningIcon
+            }
+          />
+        )}
+        {showStrictModeBadge && (
+          <Icon
+            className={
+              isSelected && treeFocused
+                ? styles.StrictModeContrast
+                : styles.StrictMode
+            }
+            title="This component is not running in StrictMode."
+            type="strict-mode-non-compliant"
+          />
+        )}
       </div>
     </div>
   );
@@ -159,10 +225,10 @@ const swallowDoubleClick = event => {
   event.stopPropagation();
 };
 
-type ExpandCollapseToggleProps = {|
-  element: Element,
+type ExpandCollapseToggleProps = {
+  element: ElementType,
   store: Store,
-|};
+};
 
 function ExpandCollapseToggle({element, store}: ExpandCollapseToggleProps) {
   const {children, id, isCollapsed} = element;
@@ -194,10 +260,10 @@ function ExpandCollapseToggle({element, store}: ExpandCollapseToggleProps) {
   );
 }
 
-type DisplayNameProps = {|
+type DisplayNameProps = {
   displayName: string | null,
   id: number,
-|};
+};
 
 function DisplayName({displayName, id}: DisplayNameProps) {
   const {searchIndex, searchResults, searchText} = useContext(TreeStateContext);

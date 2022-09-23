@@ -10,7 +10,9 @@
 import type {ReactNodeList, Wakeable} from 'shared/ReactTypes';
 import type {Fiber} from './ReactInternalTypes';
 import type {SuspenseInstance} from './ReactFiberHostConfig';
-import type {Lane} from './ReactFiberLane';
+import type {Lane} from './ReactFiberLane.new';
+import type {TreeContext} from './ReactFiberTreeContext.new';
+
 import {SuspenseComponent, SuspenseListComponent} from './ReactWorkTags';
 import {NoFlags, DidCapture} from './ReactFiberFlags';
 import {
@@ -18,7 +20,7 @@ import {
   isSuspenseInstanceFallback,
 } from './ReactFiberHostConfig';
 
-export type SuspenseProps = {|
+export type SuspenseProps = {
   children?: ReactNodeList,
   fallback?: ReactNodeList,
 
@@ -26,7 +28,8 @@ export type SuspenseProps = {|
   suspenseCallback?: (Set<Wakeable> | null) => mixed,
 
   unstable_expectedLoadTime?: number,
-|};
+  unstable_name?: string,
+};
 
 // A null SuspenseState represents an unsuspended normal Suspense boundary.
 // A non-null SuspenseState means that it is blocked for one reason or another.
@@ -35,20 +38,21 @@ export type SuspenseProps = {|
 //     isSuspenseInstanceFallback to query the reason for being dehydrated.
 // - A null dehydrated field means it's blocked by something suspending and
 //   we're currently showing a fallback instead.
-export type SuspenseState = {|
+export type SuspenseState = {
   // If this boundary is still dehydrated, we store the SuspenseInstance
   // here to indicate that it is dehydrated (flag) and for quick access
   // to check things like isSuspenseInstancePending.
   dehydrated: null | SuspenseInstance,
+  treeContext: null | TreeContext,
   // Represents the lane we should attempt to hydrate a dehydrated boundary at.
   // OffscreenLane is the default for dehydrated boundaries.
   // NoLane is the default for normal boundaries, which turns into "normal" pri.
   retryLane: Lane,
-|};
+};
 
 export type SuspenseListTailMode = 'collapsed' | 'hidden' | void;
 
-export type SuspenseListRenderState = {|
+export type SuspenseListRenderState = {
   isBackwards: boolean,
   // The currently rendering tail row.
   rendering: null | Fiber,
@@ -60,39 +64,7 @@ export type SuspenseListRenderState = {|
   tail: null | Fiber,
   // Tail insertions setting.
   tailMode: SuspenseListTailMode,
-|};
-
-export function shouldCaptureSuspense(
-  workInProgress: Fiber,
-  hasInvisibleParent: boolean,
-): boolean {
-  // If it was the primary children that just suspended, capture and render the
-  // fallback. Otherwise, don't capture and bubble to the next boundary.
-  const nextState: SuspenseState | null = workInProgress.memoizedState;
-  if (nextState !== null) {
-    if (nextState.dehydrated !== null) {
-      // A dehydrated boundary always captures.
-      return true;
-    }
-    return false;
-  }
-  const props = workInProgress.memoizedProps;
-  // In order to capture, the Suspense component must have a fallback prop.
-  if (props.fallback === undefined) {
-    return false;
-  }
-  // Regular boundaries always capture.
-  if (props.unstable_avoidThisFallback !== true) {
-    return true;
-  }
-  // If it's a boundary we should avoid, then we prefer to bubble up to the
-  // parent boundary if it is currently invisible.
-  if (hasInvisibleParent) {
-    return false;
-  }
-  // If the parent is not able to handle it, we must handle it.
-  return true;
-}
+};
 
 export function findFirstSuspended(row: Fiber): null | Fiber {
   let node = row;

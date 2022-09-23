@@ -15,11 +15,11 @@ import {ProfilerContext} from './ProfilerContext';
 
 import styles from './RecordToggle.css';
 
-export type Props = {|
+export type Props = {
   disabled?: boolean,
-|};
+};
 
-export default function RecordToggle({disabled}: Props) {
+export default function RecordToggle({disabled}: Props): React.Node {
   const {isProfiling, startProfiling, stopProfiling} = useContext(
     ProfilerContext,
   );
@@ -36,6 +36,7 @@ export default function RecordToggle({disabled}: Props) {
       className={className}
       disabled={disabled}
       onClick={isProfiling ? stopProfiling : startProfiling}
+      testName="ProfilerToggleButton"
       title={isProfiling ? 'Stop profiling' : 'Start profiling'}>
       <ButtonIcon type="record" />
     </Button>

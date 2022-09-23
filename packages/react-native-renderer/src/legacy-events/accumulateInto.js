@@ -7,7 +7,7 @@
  * @flow
  */
 
-import invariant from 'shared/invariant';
+import isArray from 'shared/isArray';
 
 /**
  * Accumulates items that must not be null or undefined into the first one. This
@@ -26,10 +26,11 @@ function accumulateInto<T>(
   current: ?(Array<T> | T),
   next: T | Array<T>,
 ): T | Array<T> {
-  invariant(
-    next != null,
-    'accumulateInto(...): Accumulated items must not be null or undefined.',
-  );
+  if (next == null) {
+    throw new Error(
+      'accumulateInto(...): Accumulated items must not be null or undefined.',
+    );
+  }
 
   if (current == null) {
     return next;
@@ -37,16 +38,18 @@ function accumulateInto<T>(
 
   // Both are not empty. Warning: Never call x.concat(y) when you are not
   // certain that x is an Array (x could be a string with concat method).
-  if (Array.isArray(current)) {
-    if (Array.isArray(next)) {
+  if (isArray(current)) {
+    if (isArray(next)) {
+      // $FlowFixMe `isArray` does not ensure array is mutable
       current.push.apply(current, next);
       return current;
     }
+    // $FlowFixMe `isArray` does not ensure array is mutable
     current.push(next);
     return current;
   }
 
-  if (Array.isArray(next)) {
+  if (isArray(next)) {
     // A bit too dangerous to mutate `next`.
     return [current].concat(next);
   }

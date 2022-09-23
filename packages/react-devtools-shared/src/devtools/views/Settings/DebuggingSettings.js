@@ -13,12 +13,16 @@ import {SettingsContext} from './SettingsContext';
 
 import styles from './SettingsShared.css';
 
-export default function DebuggingSettings(_: {||}) {
+export default function DebuggingSettings(_: {}): React.Node {
   const {
     appendComponentStack,
     breakOnConsoleErrors,
+    hideConsoleLogsInStrictMode,
     setAppendComponentStack,
     setBreakOnConsoleErrors,
+    setShowInlineWarningsAndErrors,
+    showInlineWarningsAndErrors,
+    setHideConsoleLogsInStrictMode,
   } = useContext(SettingsContext);
 
   return (
@@ -40,12 +44,38 @@ export default function DebuggingSettings(_: {||}) {
         <label>
           <input
             type="checkbox"
+            checked={showInlineWarningsAndErrors}
+            onChange={({currentTarget}) =>
+              setShowInlineWarningsAndErrors(currentTarget.checked)
+            }
+          />{' '}
+          Show inline warnings and errors.
+        </label>
+      </div>
+
+      <div className={styles.Setting}>
+        <label>
+          <input
+            type="checkbox"
             checked={breakOnConsoleErrors}
             onChange={({currentTarget}) =>
               setBreakOnConsoleErrors(currentTarget.checked)
             }
           />{' '}
           Break on warnings
+        </label>
+      </div>
+
+      <div className={styles.Setting}>
+        <label>
+          <input
+            type="checkbox"
+            checked={hideConsoleLogsInStrictMode}
+            onChange={({currentTarget}) =>
+              setHideConsoleLogsInStrictMode(currentTarget.checked)
+            }
+          />{' '}
+          Hide logs during second render in Strict Mode
         </label>
       </div>
     </div>

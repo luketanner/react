@@ -9,11 +9,13 @@
 
 export type HookFlags = number;
 
-export const NoFlags = /*  */ 0b000;
+export const NoFlags = /*   */ 0b00000;
 
 // Represents whether effect should fire.
-export const HasEffect = /* */ 0b001;
+export const HasEffect = /* */ 0b00001;
 
 // Represents the phase in which the effect (not the clean-up) fires.
-export const Layout = /*    */ 0b010;
-export const Passive = /*   */ 0b100;
+export const Snapshot = /*  */ 0b00010;
+export const Insertion = /* */ 0b00100;
+export const Layout = /*    */ 0b01000;
+export const Passive = /*   */ 0b10000;
